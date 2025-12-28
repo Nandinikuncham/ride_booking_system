@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ride Booking System</title>
+  <style>
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    .ASSIGNED { color: orange; }
+    .COMPLETED { color: green; }
+  </style>
+</head>
+
+<body>
+<h2>🚗 Ride Booking System</h2>
+
+<div class="card">
+  <label>User ID:</label>
+  <input id="userId" type="number" value="1"><br><br>
+
+  <label>Destination X:</label>
+  <input id="destX" type="number" value="10"><br><br>
+
+  <label>Destination Y:</label>
+  <input id="destY" type="number" value="10"><br><br>
+
+  <label>Vehicle:</label>
+  <select id="vehicleType">
+    <option>Sedan</option>
+    <option>SUV</option>
+  </select><br><br>
+
+  <button onclick="requestRide()">Request Ride</button>
+  <button onclick="completeRide()">Complete Ride</button>
+</div>
+
+<div id="currentRide" class="card" style="display:none;"></div>
+
+<div class="card">
+  <h3>📜 Ride History</h3>
+  <ul id="history"></ul>
+</div>
+
+<script>
+let currentRideId = null;
+
+async function requestRide() {
+  const userId = Number(userIdInput.value);
+  const res = await fetch("http://localhost:8000/ride/request", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      user_id: userId,
+      destination_x: Number(destX.value),
+      destination_y: Number(destY.value),
+      vehicle_type: vehicleType.value
+    })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    alert(JSON.stringify(data));
+    return;
+  }
+
+  currentRideId = data.ride_id;
+  currentRide.style.display = "block";
+  currentRide.innerHTML = `
+    <b>Ride ID:</b> ${data.ride_id}<br>
+    <b>Driver:</b> ${data.driver}<br>
+    <b>Fare:</b> ₹${data.fare}<br>
+    <b>Status:</b> <span class="${data.status}">${data.status}</span>
+  `;
+  fetchHistory(userId);
+}
+
+async function completeRide() {
+  if (!currentRideId) return alert("No active ride");
+
+  await fetch("http://localhost:8000/ride/complete", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ ride_id: currentRideId })
+  });
+
+  fetchHistory(Number(userId.value));
+}
+
+async function fetchHistory(userId) {
+  const res = await fetch(`http://localhost:8000/ride/history/${userId}`);
+  const data = await res.json();
+
+  history.innerHTML = "";
+  data.rides.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `Ride ${r.ride_id} | ${r.driver} | ₹${r.fare} | <span class="${r.status}">${r.status}</span>`;
+    history.appendChild(li);
+  });
+}
+</script>
+
+</body>
+</html>
